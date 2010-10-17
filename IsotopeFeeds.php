@@ -164,7 +164,7 @@ class IsotopeFeeds extends Frontend
 									->execute($objModules->iso_reader_jumpTo);
 		}
 
-		$strUrl = $this->generateFrontendUrl($objParent->fetchAssoc(), '/products/%s');
+		$strUrl = $this->generateFrontendUrl($objParent->fetchAssoc(), '/product/%s');
 
 		// Parse items
 		foreach($arrProducts as $objProduct)
