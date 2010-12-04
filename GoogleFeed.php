@@ -53,7 +53,10 @@ class GoogleFeed extends Feed
 			$xml .= '      <title>' . specialchars($objItem->title) . '</title>' . "\n";
 			$xml .= '      <description><![CDATA[' . preg_replace('/[\n\r]+/', ' ', $objItem->description) . ']]></description>' . "\n";
 			$xml .= '      <link>' . specialchars($objItem->link) . '</link>' . "\n";
-			$xml .= '      <pubDate>' . date('r', $objItem->published) . '</pubDate>' . "\n";
+			$xml .= '      <g:id>' . specialchars($objItem->sku) . '</g:id>' . "\n";
+			$xml .= '      <g:price>' . specialchars($objItem->price) . '<g:price>' . "\n";
+			$xml .= '      <g:condition>new<g:condition>' . "\n";
+			$xml .= '      <g:image_link>' . specialchars($objItem->image) . '</g:image_link>' . "\n";
 			$xml .= '      <guid>' . ($objItem->guid ? $objItem->guid : specialchars($objItem->link)) . '</guid>' . "\n";
 			$xml .= '    </item>' . "\n";
 		}

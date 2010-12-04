@@ -25,8 +25,17 @@
  * @license    http://opensource.org/licenses/lgpl-3.0.html
  */
 
-class IsotopeFeeds extends Frontend
+class IsotopeFeeds extends Controller
 {
+
+	/**
+	 * Import some default libraries
+	 */
+	protected function __construct()
+	{
+		parent::__construct();
+		$this->import('Database');
+	}
 
 	/**
 	 * Update a particular store config's RSS feed
@@ -88,6 +97,22 @@ class IsotopeFeeds extends Frontend
 			}
 		}
 	}
+	
+	/**
+	 * remove feeds hook to preserve files
+	 */
+	public function preserveFeeds()
+	{
+		$objConfig = $this->Database->execute("SELECT * FROM tl_iso_config WHERE addFeed=1");
+
+		while ($objConfig->next())
+		{
+			$arrFeeds[] = $objConfig->feedName = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
+		}
+		
+		return $arrFeeds;
+		
+	}
 
 
 	/**
@@ -97,6 +122,8 @@ class IsotopeFeeds extends Frontend
 	 */
 	protected function generateFiles($arrConfig, $strType)
 	{
+		$this->import('Isotope');
+	
 		$arrType = $GLOBALS['ISO_FEEDS'][$strType];
 		$time = time();
 		$strLink = strlen($arrConfig['feedBase']) ? $arrConfig['feedBase'] : $this->Environment->base;
@@ -112,8 +139,8 @@ class IsotopeFeeds extends Frontend
 		}
 
 		$objFeed->link = $strLink;
-		$objFeed->title = $arrConfig['name'];
-		$objFeed->description = $arrConfig['description'];
+		$objFeed->title = $arrConfig['feedTitle'];
+		$objFeed->description = $arrConfig['feedDesc'];
 		$objFeed->language = $arrConfig['language'];
 		$objFeed->published = time();
 
@@ -132,9 +159,11 @@ class IsotopeFeeds extends Frontend
 				}
 			}
 		}
-		$objProducts = $this->Database->execute("SELECT * FROM tl_iso_products WHERE pid=0 AND (start='' OR start<$time) AND (stop='' OR stop>$time) AND published=1");
+		$objProducts = $this->Database->execute("SELECT *, (SELECT class FROM tl_iso_producttypes WHERE tl_iso_products.type=tl_iso_producttypes.id) AS product_class FROM tl_iso_products WHERE pid=0 AND (start='' OR start<$time) AND (stop='' OR stop>$time) AND published=1");
 		while($objProducts->next())
 		{
+			$strClass = $GLOBALS['ISO_PRODUCT'][$objProducts->product_class]['class'];
+			
 			if(count($arrPages))
 			{
 				$arrProductPages = deserialize($objProducts->pages);
@@ -167,24 +196,33 @@ class IsotopeFeeds extends Frontend
 		$strUrl = $this->generateFrontendUrl($objParent->fetchAssoc(), '/product/%s');
 
 		// Parse items
-		foreach($arrProducts as $objProduct)
+		foreach($arrProducts as $product)
 		{
-			
+		
 			$objItem = new FeedItem();
 
-			$objItem->title = $objProduct['name'];
-			$objItem->link = $this->getLink($objProduct, $strUrl);
+			$objItem->title = $product['name'];
+			$objItem->link = $this->getLink($product, $strLink . $strUrl);
 			$objItem->published = time();
 
 			// Prepare the description
-			$strDescription = $objProduct['description'];
+			$strDescription = $product['description'];
 			$strDescription = $this->replaceInsertTags($strDescription);
 			$objItem->description = $this->convertRelativeUrls($strDescription, $strLink);
-
+			
+			//Sku, price, etc
+			$objItem->sku = strlen($product['sku']) ? $product['sku'] : $product['alias'];
+			$objItem->price = $product['price'] .' '. $this->Isotope->Config->currency;
+			
+			//Prepare the image
+			$arrImages = $this->getProductImages($product);
+			$objItem->image = $this->Environment->base . $arrImages[0]['medium'];
+			$objItem->addEnclosure($arrImages[0]['medium']);
+			
 			$objFeed->addItem($objItem);
 			
 		}
-		
+				
 		// Create file
 		$objRss = new File($strFile . '.xml');
 		$objRss->write($this->replaceInsertTags($objFeed->$arrType[1]()));
@@ -198,11 +236,73 @@ class IsotopeFeeds extends Frontend
 	 * @param string
 	 * @return string
 	 */
-	protected function getLink(Array $arrProduct, $strUrl)
+	protected function getLink($arrProduct, $strUrl)
 	{
 		// Link to the default page
 		return sprintf($strUrl, ((strlen($arrProduct['alias']) && !$GLOBALS['TL_CONFIG']['disableAlias']) ? $arrProduct['alias'] : $arrProduct['id']));
 	}
+	
+	protected function getProductImages($arrProduct)
+	{
+		$this->import('Isotope');
+		
+		$varValue = deserialize($arrProduct['images']);
+
+		if(is_array($varValue) && count($varValue))
+		{
+			foreach( $varValue as $k => $file )
+			{
+				$strFile = 'isotope/' . substr($file['src'], 0, 1) . '/' . $file['src'];
+
+				if (is_file(TL_ROOT . '/' . $strFile))
+				{
+					$objFile = new File($strFile);
+
+					if ($objFile->isGdImage)
+					{
+						foreach( array('large', 'medium', 'thumbnail', 'gallery') as $type )
+						{
+							$size = $this->Isotope->Config->{$type . '_size'};
+							$strImage = $this->getImage($strFile, $size[0], $size[1], $size[2]);
+							$arrSize = @getimagesize(TL_ROOT . '/' . $strImage);
+
+							$file[$type] = $strImage;
+
+							if (is_array($arrSize) && strlen($arrSize[3]))
+							{
+								$file[$type . '_size'] = $arrSize[3];
+							}
+						}
+
+						$arrReturn[] = $file;
+					}
+				}
+			}
+		}
+		
+		// No image available, add default image
+		if (!count($this->arrFiles) && is_file(TL_ROOT . '/' . $this->Isotope->Config->missing_image_placeholder))
+		{
+			foreach( array('large', 'medium', 'thumbnail', 'gallery') as $type )
+			{
+				$size = $this->Isotope->Config->{$type . '_size'};
+				$strImage = $this->getImage($this->Isotope->Config->missing_image_placeholder, $size[0], $size[1], $size[2]);
+				$arrSize = @getimagesize(TL_ROOT . '/' . $strImage);
+
+				$file[$type] = $strImage;
+
+				if (is_array($arrSize) && strlen($arrSize[3]))
+				{
+					$file[$type . '_size'] = $arrSize[3];
+				}
+			}
+
+			$arrReturn[] = $file;
+		}
+		
+		return $arrReturn;
+	}
+	
 }
 
 ?>

@@ -25,22 +25,8 @@
  * @license    http://opensource.org/licenses/lgpl-3.0.html
  */
 
-/**
- * Isotope Feeds
- */
-$GLOBALS['ISO_FEEDS'] = array
-(
-	'googlebase' => array('GoogleFeed', 'generateGoogle'),
-	'rss20'		 => array('Feed', 'generateRss')
-);
-
 
 /**
- * Cron jobs
+ * Table tl_iso_products 
  */
-$GLOBALS['TL_CRON']['daily'][] = array('IsotopeFeeds', 'generateFeeds');
-
-/**
- * Hooks
- */
-$GLOBALS['TL_HOOKS']['removeOldFeeds'][] = array('IsotopeFeeds', 'preserveFeeds');
+$GLOBALS['TL_DCA']['tl_iso_products']['config']['onsubmit_callback'][] = array('IsotopeFeeds', 'generateFeeds');
