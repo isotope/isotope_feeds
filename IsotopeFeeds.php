@@ -104,15 +104,18 @@ class IsotopeFeeds extends Controller
 	public function preserveFeeds()
 	{
 		$objConfig = $this->Database->execute("SELECT * FROM tl_iso_config WHERE addFeed=1");
+		$arrFeeds = array();
 		
 		$objConfig->feedName = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
 		$arrFeedTypes = deserialize($objConfig->feedTypes);
 		
-		foreach( $arrFeedTypes as $feedType )
+		if(is_array($arrConfig) && count($arrConfig) > 0)
 		{
-			$arrFeeds[] = $objConfig->feedName . '-'. $feedType;
+			foreach( $arrFeedTypes as $feedType )
+			{
+				$arrFeeds[] = $objConfig->feedName . '-'. $feedType;
+			}
 		}
-		
 		return $arrFeeds;
 		
 	}
