@@ -21,3 +21,14 @@ CREATE TABLE `tl_iso_config` (
   `feedJumpTo` int(10) unsigned NOT NULL default '0',
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
+
+
+-- 
+-- Table `tl_layout`
+-- 
+
+CREATE TABLE `tl_layout` (
+  `productfeeds` blob NULL,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- ------

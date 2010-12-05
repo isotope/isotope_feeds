@@ -26,22 +26,6 @@
  */
 
 /**
- * Isotope Feeds
+ * tl_layout
  */
-$GLOBALS['ISO_FEEDS'] = array
-(
-	'googlebase' => array('GoogleFeed', 'generateGoogle'),
-	'rss20'		 => array('Feed', 'generateRss')
-);
-
-
-/**
- * Cron jobs
- */
-$GLOBALS['TL_CRON']['daily'][] = array('IsotopeFeeds', 'generateFeeds');
-
-/**
- * Hooks
- */
-$GLOBALS['TL_HOOKS']['removeOldFeeds'][] = array('IsotopeFeeds', 'preserveFeeds');
-$GLOBALS['TL_HOOKS']['generatePage'][] = array('IsotopeFeeds', 'addFeedToLayout');
+$GLOBALS['TL_LANG']['tl_layout']['productfeeds'] = array('Product Feeds','Please select the product feeds you want to add to the layout.');

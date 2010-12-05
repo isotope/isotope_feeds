@@ -104,14 +104,51 @@ class IsotopeFeeds extends Controller
 	public function preserveFeeds()
 	{
 		$objConfig = $this->Database->execute("SELECT * FROM tl_iso_config WHERE addFeed=1");
-
-		while ($objConfig->next())
+		
+		$objConfig->feedName = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
+		$arrFeedTypes = deserialize($objConfig->feedTypes);
+		
+		foreach( $arrFeedTypes as $feedType )
 		{
-			$arrFeeds[] = $objConfig->feedName = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
+			$arrFeeds[] = $objConfig->feedName . '-'. $feedType;
 		}
 		
 		return $arrFeeds;
 		
+	}
+	
+	/**
+	 * hook to add feed to head
+	 */
+	public function addFeedToLayout(Database_Result $objPage, Database_Result $objLayout, PageRegular $objPageRegular)
+	{
+		$arrFeeds = deserialize($objLayout->productfeeds);
+		if(is_array($arrFeeds) && count($arrFeeds) > 0)
+		{
+			foreach($arrFeeds as $feed)
+			{
+				$arrConfig = explode('|', $feed);
+				if(is_array($arrConfig) && count($arrConfig) > 0)
+				{
+					$objConfig = $this->Database->prepare("SELECT * FROM tl_iso_config WHERE addFeed=1 AND id=?")->limit(1)->execute($arrConfig[0], $arrConfig[1]);
+			
+					$arrTypes = deserialize($objConfig->feedTypes);
+					foreach($arrTypes as $type)
+					{
+						if($arrConfig[1]==$type)
+						{
+							$strFeedname = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
+							$strName = $strFeedname . '-'. $type;
+							$base = strlen($objConfig->feedBase) ? $objConfig->feedBase : $this->Environment->base;
+							$GLOBALS['TL_HEAD'][] = '<link rel="alternate" href="' . $base . $strName . '.xml" type="application/rss+xml" title="' . $objConfig->feedTitle . '" />' . "\n";
+						}
+					
+					}
+					
+					
+				}
+			}
+		}
 	}
 
 
