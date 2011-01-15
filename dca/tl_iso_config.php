@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program. If not, please visit the Free
  * Software Foundation website at <http://www.gnu.org/licenses/>.
@@ -28,14 +28,14 @@
 
 
 /**
- * Table tl_iso_config 
+ * Table tl_iso_config
  */
 $GLOBALS['TL_DCA']['tl_iso_config']['config']['onsubmit_callback'][] = array('IsotopeFeeds', 'generateFeeds');
- 
+
 $GLOBALS['TL_DCA']['tl_iso_config']['palettes']['__selector__'][] = 'addFeed';
 $GLOBALS['TL_DCA']['tl_iso_config']['palettes']['default'] = str_replace('{images_legend}', '{feed_legend},addFeed;{images_legend}', $GLOBALS['TL_DCA']['tl_iso_config']['palettes']['default']);
 $GLOBALS['TL_DCA']['tl_iso_config']['subpalettes']['addFeed'] = 'feedTypes,feedName,feedBase,feedTitle,feedDesc,feedJumpTo';
-					
+
 
 // Fields
 $GLOBALS['TL_DCA']['tl_iso_config']['fields']['addFeed'] = array
@@ -98,7 +98,7 @@ class tl_iso_config_feeds extends Backend
 		parent::__construct();
 		$this->import('BackendUser', 'User');
 	}
-	
+
 	/**
 	 * Return all editable fields of table tl_member
 	 * @return array
@@ -113,5 +113,5 @@ class tl_iso_config_feeds extends Backend
 		}
 		return $return;
 	}
-	
+
 }

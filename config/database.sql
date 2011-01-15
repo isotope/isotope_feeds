@@ -7,9 +7,9 @@
 -- *                                                        *
 -- **********************************************************
 
--- 
+--
 -- Table `tl_iso_config`
--- 
+--
 
 CREATE TABLE `tl_iso_config` (
   `addFeed` char(1) NOT NULL default '',
@@ -23,9 +23,9 @@ CREATE TABLE `tl_iso_config` (
 
 
 
--- 
+--
 -- Table `tl_layout`
--- 
+--
 
 CREATE TABLE `tl_layout` (
   `productfeeds` blob NULL,
