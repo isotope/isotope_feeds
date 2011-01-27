@@ -224,8 +224,8 @@ class IsotopeFeeds extends Controller
 									->execute($arrConfig['feedJumpTo']);
 		if(!$objParent->numRows)
 		{
-			//Get the first reader page we can find
-			//@todo: restrict it to store config root
+			// Get the first reader page we can find
+			// @todo restrict it to store config root
 			$objModules = $this->Database->prepare("SELECT iso_reader_jumpTo FROM tl_module WHERE iso_reader_jumpTo!=''")->limit(1)->execute();
 
 			$objParent = $this->Database->prepare("SELECT id, alias FROM tl_page WHERE id=?")
