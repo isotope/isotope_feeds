@@ -46,18 +46,54 @@ class GoogleFeed extends Feed
 		$xml .= '    <pubDate>' . date('r', $this->published) . '</pubDate>' . "\n";
 		$xml .= '    <generator>Contao Open Source CMS</generator>' . "\n";
 		$xml .= '    <atom:link href="' . specialchars($this->Environment->base . $this->strName) . '.xml" rel="self" type="application/rss+xml" />' . "\n";
+		
+		$arrGoogleFields = array(
+			'id',
+			'price',
+			'availability',
+			'condition',
+			'image_link',
+			'product_type',
+			'google_product_category',
+			'brand',
+			'gtin',
+			'mpn',
+			'additional_image_link',
+			'sale_price',
+			'sale_price_effective_date',
+			'item_group_id',
+			'color',
+			'material',
+			'pattern',
+			'size',
+			'gender',
+			'age_group',
+		);
+		
 
 		foreach ($this->arrItems as $objItem)
 		{
 			$xml .= '    <item>' . "\n";
 			$xml .= '      <title>' . specialchars($objItem->title) . '</title>' . "\n";
 			$xml .= '      <description><![CDATA[' . preg_replace('/[\n\r]+/', ' ', $objItem->description) . ']]></description>' . "\n";
-			$xml .= '      <link>' . specialchars($objItem->link) . '</link>' . "\n";
-			$xml .= '      <g:id>' . specialchars($objItem->sku) . '</g:id>' . "\n";
-			$xml .= '      <g:price>' . specialchars($objItem->price) . '<g:price>' . "\n";
-			$xml .= '      <g:condition>new<g:condition>' . "\n";
-			$xml .= '      <g:image_link>' . specialchars($objItem->image) . '</g:image_link>' . "\n";
-			$xml .= '      <guid>' . ($objItem->guid ? $objItem->guid : specialchars($objItem->link)) . '</guid>' . "\n";
+			$xml .= '      <link><![CDATA[' . specialchars($objItem->link) . ']]></link>' . "\n";
+			foreach($arrGoogleFields as $strKey)
+			{
+				if($objItem->__isset($strKey) && strlen($objItem->$strKey) )
+				{
+					if(is_array($objItem->$strKey) && count($objItem->$strKey))
+					{
+						foreach($objItem->$strKey as $value)
+						{
+							$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($value) . ']]></g:'.$strKey.'>' . "\n";
+						}
+					}
+					else
+					{
+						$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($objItem->$strKey) . ']]></g:'.$strKey.'>' . "\n";
+					}
+				}
+			}
 			$xml .= '    </item>' . "\n";
 		}
 
