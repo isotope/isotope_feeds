@@ -46,7 +46,7 @@ class GoogleFeed extends Feed
 		$xml .= '    <pubDate>' . date('r', $this->published) . '</pubDate>' . "\n";
 		$xml .= '    <generator>Contao Open Source CMS</generator>' . "\n";
 		$xml .= '    <atom:link href="' . specialchars($this->Environment->base . $this->strName) . '.xml" rel="self" type="application/rss+xml" />' . "\n";
-		
+
 		$arrGoogleFields = array(
 			'id',
 			'price',
@@ -69,7 +69,7 @@ class GoogleFeed extends Feed
 			'gender',
 			'age_group',
 		);
-		
+
 
 		foreach ($this->arrItems as $objItem)
 		{

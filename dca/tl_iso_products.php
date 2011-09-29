@@ -85,17 +85,17 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_mpn'] = array
 	'eval'                    => array('tl_class'=>'w50'),
 	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
 );
- 
+
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_google_product_category'] = array
-( 
+(
 	'label'                   => &$GLOBALS['TL_LANG']['tl_iso_products']['gid_google_product_category'],
 	'exclude'                 => true,
  	'inputType' 		=> 'tableTree',
  	'eval'      		=> array(
- 		'fieldType' 		=> 'radio', 
- 		'tableColumn'		=> 'tl_google_taxonomy.name', 
- 		'title'				=> &$GLOBALS['TL_LANG']['tl_google_taxonomy']['customSubTitle'], 
- 		'children' 			=> true, 
+ 		'fieldType' 		=> 'radio',
+ 		'tableColumn'		=> 'tl_google_taxonomy.name',
+ 		'title'				=> &$GLOBALS['TL_LANG']['tl_google_taxonomy']['customSubTitle'],
+ 		'children' 			=> true,
  		'childrenOnly'		=> false,
  		'tl_class'			=> 'clr'
  	),
