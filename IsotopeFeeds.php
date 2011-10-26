@@ -210,7 +210,7 @@ class IsotopeFeeds extends Controller
 			}
 		}
 
-		$objProductData = $this->Database->execute("SELECT *, (SELECT class FROM tl_iso_producttypes t WHERE p.type=t.id) AS product_class FROM tl_iso_products p LEFT JOIN tl_iso_product_categories c ON c.pid=p.id WHERE ".(count($arrPages)>0 ? "c.pageid IN (" . implode(',',$arrPages) . ") AND " : ''). "p.pid=0 AND (p.start='' OR p.start<$time) AND (p.stop='' OR p.stop>$time) AND p.published=1 ORDER BY p.tstamp DESC");
+		$objProductData = $this->Database->execute("SELECT p.*, (SELECT class FROM tl_iso_producttypes t WHERE p.type=t.id) AS product_class FROM tl_iso_products p LEFT JOIN tl_iso_product_categories c ON c.pid=p.id WHERE ".(count($arrPages)>0 ? "c.pageid IN (" . implode(',',$arrPages) . ") AND " : ''). "p.pid=0 AND (p.start='' OR p.start<$time) AND (p.stop='' OR p.stop>$time) AND p.published=1 ORDER BY p.tstamp DESC");
 
 		while($objProductData->next())
 		{
