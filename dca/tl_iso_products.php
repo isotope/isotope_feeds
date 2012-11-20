@@ -29,12 +29,44 @@
 /**
  * Config
  */
-$GLOBALS['TL_DCA']['tl_iso_products']['config']['onsubmit_callback'][] = array('IsotopeFeeds', 'generateFeeds');
+$GLOBALS['TL_DCA']['tl_iso_products']['config']['onload_callback'][] = array('tl_iso_products_feeds', 'generateFeeds');
+$GLOBALS['TL_DCA']['tl_iso_products']['config']['onsubmit_callback'][] = array('IsotopeFeeds', 'cacheProduct');
+
+/**
+ * Global operations
+ */
+$GLOBALS['TL_DCA']['tl_iso_products']['list' ]['global_operations']['cache_feeds'] = array
+(
+	'label'				=> &$GLOBALS['TL_LANG']['tl_iso_products']['cache_feeds'],
+	'button_callback'	=> array('tl_iso_products_feeds', 'cacheButton'),
+	'attributes'		=> 'onclick="Backend.getScrollOffset();"',
+);
+
+/**
+ * Global operations
+ */
+$GLOBALS['TL_DCA']['tl_iso_products']['list' ]['global_operations']['generate_feeds'] = array
+(
+	'label'				=> &$GLOBALS['TL_LANG']['tl_iso_products']['generate_feeds'],
+	'href'				=> 'act=generatefeeds',
+	'class'				=> 'header_iso_feeds isotope-tools',
+	'attributes'		=> 'onclick="Backend.getScrollOffset();"',
+);
 
 
 /**
  * Fields
  */
+$GLOBALS['TL_DCA']['tl_iso_products']['fields']['useFeed'] = array
+(
+	'label'                   => &$GLOBALS['TL_LANG']['tl_iso_products']['useFeed'],
+	'exclude'                 => true,
+	'inputType'               => 'checkbox',
+	'eval'                    => array('tl_class'=>'clr m12'),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true, 'variant_fixed'=>true),
+);
+ 
+ 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_condition'] = array
 (
 	'label'                   => &$GLOBALS['TL_LANG']['tl_iso_products']['gid_condition'],
@@ -42,9 +74,10 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_condition'] = array
 	'default'				  => 'new',
 	'inputType'               => 'select',
 	'options'				  => array('new','used','refurbished'),
-	'eval'                    => array('mandatory'=>true, 'tl_class'=>'w50'),
+	'save_callback'			  => array(array('tl_iso_products_feeds', 'checkGoogle')),
+	'eval'                    => array('tl_class'=>'w50'),
 	'reference'				  => &$GLOBALS['TL_LANG']['tl_iso_products'],
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_availability'] = array
@@ -54,9 +87,10 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_availability'] = array
 	'default'				  => 'in stock',
 	'inputType'               => 'select',
 	'options'				  => array('in stock','available for order','out of stock','preorder'),
-	'eval'                    => array('mandatory'=>true, 'tl_class'=>'w50'),
+	'save_callback'			  => array(array('tl_iso_products_feeds', 'checkGoogle')),
+	'eval'                    => array('tl_class'=>'w50'),
 	'reference'				  => &$GLOBALS['TL_LANG']['tl_iso_products'],
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_brand'] = array
@@ -64,8 +98,9 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_brand'] = array
 	'label'                   => &$GLOBALS['TL_LANG']['tl_iso_products']['gid_brand'],
 	'exclude'                 => true,
 	'inputType'               => 'text',
-	'eval'                    => array('mandatory'=>true, 'tl_class'=>'w50'),
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'save_callback'			  => array(array('tl_iso_products_feeds', 'checkGoogle')),
+	'eval'                    => array('tl_class'=>'w50'),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_gtin'] = array
@@ -74,7 +109,7 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_gtin'] = array
 	'exclude'                 => true,
 	'inputType'               => 'text',
 	'eval'                    => array('rgxp'=>'digit', 'tl_class'=>'w50'),
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_mpn'] = array
@@ -83,7 +118,7 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_mpn'] = array
 	'exclude'                 => true,
 	'inputType'               => 'text',
 	'eval'                    => array('tl_class'=>'w50'),
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_google_product_category'] = array
@@ -99,7 +134,7 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_google_product_category'] =
  		'childrenOnly'		=> false,
  		'tl_class'			=> 'clr'
  	),
- 	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+ 	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
 $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_product_type'] = array
@@ -107,10 +142,68 @@ $GLOBALS['TL_DCA']['tl_iso_products']['fields']['gid_product_type'] = array
 	'label'                   => &$GLOBALS['TL_LANG']['tl_iso_products']['gid_product_type'],
 	'exclude'                 => true,
 	'inputType'               => 'listWizard',
-	'eval'                    => array('mandatory'=>true, 'allowHtml'=>true, 'tl_class' => 'clr m12'),
-	'attributes'			  => array('legend'=>'google_legend:hide', 'fixed'=>true),
+	'save_callback'			  => array(array('tl_iso_products_feeds', 'checkGoogle')),
+	'eval'                    => array('allowHtml'=>true, 'tl_class' => 'clr m12'),
+	'attributes'			  => array('legend'=>'feed_legend:hide', 'fixed'=>true),
 );
 
+
+class tl_iso_products_feeds extends tl_iso_products
+{
+
+	/**
+	 * Check whether the required Google info has been submitted, 
+	 * @param mixed
+	 * @param object
+	 * @return string
+	 */
+	public function checkGoogle($varValue, DataContainer $dc)
+	{
+
+		// Check whether the required Google info has been submitted, 
+		// but we don't want to require if it is not set to be a feed product
+		if ($dc->activeRecord->useFeed && !strlen($varValue))
+		{
+			throw new Exception($GLOBALS['TL_LANG']['ERR']['googleReq']);
+		}
+
+		return $varValue;
+	}
+	
+
+	/**
+	 * Generate full feed files
+	 * @param mixed
+	 * @param object
+	 * @return string
+	 */
+	public function generateFeeds()
+	{
+		if ($this->Input->get('act') == 'generatefeeds' && $this->Input->get('key') == '')
+		{
+			$this->import('IsotopeFeeds');
+			$this->IsotopeFeeds->generateFeeds();
+			
+			$this->redirect(str_replace('&act=generatefeeds','',$this->Environment->request));
+		}
+	
+	}
+	
+	
+	/**
+	 * Generate full feed files
+	 * @param mixed
+	 * @param object
+	 * @return string
+	 */
+	public function cacheButton()
+	{
+		return '<a href="../system/modules/isotope_feeds/refresh-cache.php" rel="lightbox[files 200 200]" class="header_iso_feeds isotope-tools">'.$GLOBALS['TL_LANG']['tl_iso_products']['cache_feeds'].'</a>';
+	}
+	
+	
+
+}
 
 
 ?>

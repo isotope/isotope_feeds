@@ -34,6 +34,7 @@ class IsotopeFeeds extends Controller
 	protected function __construct()
 	{
 		parent::__construct();
+		$this->import('Files');
 		$this->import('Isotope');
 		$this->import('Database');
 	}
@@ -94,7 +95,25 @@ class IsotopeFeeds extends Controller
 			foreach( $arrFeedTypes as $feedType )
 			{
 				$this->generateFiles($objConfig->row(), $feedType);
-				$this->log('Generated product feed ' . $objConfig->feedName . '-'. $feedType . '.xml"', 'IsotopeFeeds generateFeeds()', TL_CRON);
+				$this->log('Generated product feed ' . $objConfig->feedName . '-'. $feedType . '.xml"', __METHOD__, TL_CRON);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Cache the product XML for each store config
+	 */
+	public function cacheProduct($dc)
+	{
+		$objConfig = $this->Database->execute("SELECT * FROM tl_iso_config WHERE addFeed=1");
+
+		while ($objConfig->next())
+		{
+			$arrFeedTypes = deserialize($objConfig->feedTypes, true);
+			foreach( $arrFeedTypes as $feedType )
+			{
+				$this->generateProductXML($feedType, $dc->activeRecord, $objConfig->row());
 			}
 		}
 	}
@@ -107,7 +126,7 @@ class IsotopeFeeds extends Controller
 		$objConfig = $this->Database->execute("SELECT * FROM tl_iso_config WHERE addFeed=1");
 		$arrFeeds = array();
 		$objConfig->feedName = strlen($objConfig->feedName) ? $objConfig->feedName : 'products' . $objConfig->id;
-		$arrFeedTypes = deserialize($objConfig->feedTypes);
+		$arrFeedTypes = deserialize($objConfig->feedTypes, true);
 		if(is_array($arrFeedTypes) && count($arrFeedTypes)>0)
 		{
 			foreach( $arrFeedTypes as $feedType )
@@ -134,7 +153,7 @@ class IsotopeFeeds extends Controller
 				{
 					$objConfig = $this->Database->prepare("SELECT * FROM tl_iso_config WHERE addFeed=1 AND id=?")->limit(1)->execute($arrConfig[0], $arrConfig[1]);
 
-					$arrTypes = deserialize($objConfig->feedTypes);
+					$arrTypes = deserialize($objConfig->feedTypes, true);
 					foreach($arrTypes as $type)
 					{
 						if($arrConfig[1]==$type)
@@ -159,7 +178,7 @@ class IsotopeFeeds extends Controller
 	 */
 	protected function generateFiles($arrConfig, $strType)
 	{
-		$arrType = $GLOBALS['ISO_FEEDS'][$strType];
+		$arrType = $GLOBALS['ISO_FEEDS'][$strType]['feed'];
 		$time = time();
 		$strLink = strlen($arrConfig['feedBase']) ? $arrConfig['feedBase'] : $this->Environment->base;
 		$strFile = $arrConfig['feedName'] . '-' . $strType;
@@ -170,7 +189,7 @@ class IsotopeFeeds extends Controller
 		}
 		catch (Exception $e)
 		{
-			$objFeed = new GoogleFeed($strFile);
+			$objFeed = new FeedIsotope($strFile);
 		}
 
 		$objFeed->link = $strLink;
@@ -178,22 +197,61 @@ class IsotopeFeeds extends Controller
 		$objFeed->description = $arrConfig['feedDesc'];
 		$objFeed->language = $arrConfig['language'];
 		$objFeed->published = time();
-
+		
+		$strDir = 'isotope/cache/' . $arrConfig['id'] . '/' . $strType;
+		
+		if(is_dir(TL_ROOT . '/' .  $strDir))
+		{
+			$arrFiles = scan(TL_ROOT . '/' .  $strDir);
+			
+			foreach($arrFiles as $file)
+			{
+				if(is_file(TL_ROOT  . '/' . $strDir . '/' . $file))
+				{
+					$objFile = new File($strDir . '/' . $file);
+					$objFeed->addFile($objFile);
+				}
+			}
+			
+			// Create file
+			$objRss = new File($strFile . '.xml');
+			$objRss->write($this->replaceInsertTags($objFeed->$arrType[1]()));
+			$objRss->close();
+		}
+	}
+	
+	
+	
+	/**
+	 * Generate an XML file for a product and save it to the cache
+	 * @param string - feed type
+	 * @param object - DataContainer ActiveRecord or objProduct
+	 * @param array - store config info row
+	 */
+	public function generateProductXML($strType, $objRecord, $arrConfig)
+	{
+		$time = time();
+		$arrFeedClass = $GLOBALS['ISO_FEEDS'][$strType];
+		$this->import($arrFeedClass['feed'][0]);
+		$strLink = strlen($arrConfig['feedBase']) ? $arrConfig['feedBase'] : $this->Environment->base;
+		
 		// Get root pages that belong to this store config.
 		$arrPages = array();
 		$objRoot = $this->Database->prepare("SELECT * FROM tl_page p WHERE type='root' AND iso_config=?")->execute($arrConfig['id']);
+		
 		if($objRoot->numRows)
 		{
-			//Get an array of all pages under the root so that we can compare to product categories
-			$objPages = $this->Database->execute("SELECT id FROM tl_page");
-			while($objPages->next())
-			{
-				$objDetails = $this->getPageDetails($objPages->id);
-				if($objDetails->rootId == $objRoot->id)
+				$arrRoot = $objRoot->fetchEach('id');
+				//Get an array of all pages under the root so that we can compare to product categories
+				$objPages = $this->Database->execute("SELECT id FROM tl_page");
+				while($objPages->next())
 				{
-					$arrPages[] = $objPages->id;
+					$objDetails = $this->getPageDetails($objPages->id);
+					if(in_array($objDetails->rootId,$arrRoot))
+					{
+						$arrPages[] = $objPages->id;
+					}
 				}
-			}
 		}
 
 		// Get default URL
@@ -209,8 +267,15 @@ class IsotopeFeeds extends Controller
 				$intJumpTo = $objModules->iso_reader_jumpTo;
 			}
 		}
-
-		$objProductData = $this->Database->execute("SELECT p.*, (SELECT class FROM tl_iso_producttypes t WHERE p.type=t.id) AS product_class FROM tl_iso_products p LEFT JOIN tl_iso_product_categories c ON c.pid=p.id WHERE ".(count($arrPages)>0 ? "c.page_id IN (" . implode(',',$arrPages) . ") AND " : ''). "p.pid=0 AND (p.start='' OR p.start<$time) AND (p.stop='' OR p.stop>$time) AND p.published=1 ORDER BY p.tstamp DESC");
+		
+		$strIDField = $objRecord->pid > 0 ? 'p.pid' : 'p.id';
+		
+		$objProductData = $this->Database->execute("SELECT p.*, (SELECT class FROM tl_iso_producttypes t WHERE p.type=t.id) AS product_class FROM tl_iso_products p LEFT JOIN tl_iso_product_categories c ON c.pid=$strIDField WHERE ".(count($arrPages)>0 ? "c.page_id IN (" . implode(',',$arrPages) . ") AND " : ''). "(p.start='' OR p.start<$time) AND (p.stop='' OR p.stop>$time) AND p.published=1 AND p.id=$objRecord->id ORDER BY p.tstamp DESC");
+		
+		if(!$objProductData->numRows)
+		{
+			$blnDelete = true;
+		}
 
 		while($objProductData->next())
 		{
@@ -223,14 +288,37 @@ class IsotopeFeeds extends Controller
 
 			$objProduct = new $strClass($objProductData->row());
 
-			if($objProduct->available)
+			if($objProduct->published && $objProduct->available && $objProduct->useFeed)
 			{
-				$objItem = new FeedItem();
+				//Check for variants and run them instead if they exist
+				if($objProduct->pid==0 && count($objProduct->variant_ids))
+				{
+					foreach($objProduct->variant_ids as $variantID)
+					{
+						$objRecord = $this->Database->prepare("SELECT * FROM tl_iso_products WHERE id=?")->execute($variantID);
+						$this->generateProductXML($strType, $objRecord, $arrConfig);
+						
+					}
+					
+					//Do not run the parent and delete the cache file if it exists
+					$strLocation = 'isotope/cache/' . $arrConfig['id'] . '/' .  $strType . '/' . $objProduct->alias . ($objProduct->pid > 0 ? '-' . $objProduct->id : '' ) .  '.xml';
+					$this->Files->delete($strLocation);
+					continue;
+				}
+				
+				try
+				{
+					$objItem = new $GLOBALS['ISO_FEEDS'][$strType]['item']();
+				}
+				catch (Exception $e)
+				{
+					$objItem = new FeedItemIsotope();
+				}
 
 				$strUrlKey = $objProduct->alias ? $objProduct->alias  : ($objProduct->pid ? $objProduct->pid : $objProduct->id);
 
 				$objItem->title = $objProduct->name;
-				$objItem->link = $strLink . '/' . $this->generateFrontendUrl($this->Database->prepare("SELECT * FROM tl_page WHERE id=?")->execute($intJumpTo)->fetchAssoc(), '/product/' . $strUrlKey);
+				$objItem->link = $strLink . $this->generateFrontendUrl($this->Database->prepare("SELECT * FROM tl_page WHERE id=?")->execute($intJumpTo)->fetchAssoc(), '/product/' . $strUrlKey);
 				$objItem->published = time();
 
 				// Prepare the description
@@ -239,20 +327,36 @@ class IsotopeFeeds extends Controller
 				$objItem->description = $this->convertRelativeUrls($strDescription, $strLink);
 
 				//Sku, price, etc
+				$objItem->id = $objProduct->id;
 				$objItem->sku = strlen($objProduct->sku) ? $objProduct->sku : $objProduct->alias;
 				$objItem->price = $this->Isotope->formatPrice($objProduct->original_price) .' '. $arrConfig['currency'];
 
-				//Google specific settings
+				//Google basic settings
 				$objItem->condition = $objProduct->gid_condition;
 				$objItem->availability = $objProduct->gid_availability;
 				$objItem->brand = $objProduct->gid_brand;
 				$objItem->gtin = $objProduct->gid_gtin;
 				$objItem->mpn = $objProduct->gid_mpn;
 				$objItem->google_product_category = $this->Database->prepare("SELECT * FROM tl_google_taxonomy WHERE id=?")->execute($objProduct->gid_google_product_category)->fullname;
-
+				
+				//Google variants only
+				if($objProduct->pid>0)
+				{
+					$objItem->item_group_id = strlen($objProduct->sku) ? $objProduct->sku : $objProduct->alias;
+				}
+				
 				//Custom product category taxomony
 				$objItem->product_type = deserialize($objProduct->gid_product_type);
-
+				
+				//HOOK for other data that needs to be added
+				if (isset($GLOBALS['ISO_HOOKS']['feedItem']) && is_array($GLOBALS['ISO_HOOKS']['feedItem']))
+				{
+					foreach ($GLOBALS['ISO_HOOKS']['feedItem'] as $callback)
+					{
+						$this->import($callback[0]);
+						$objItem = $this->$callback[0]->$callback[1]($strType, $objItem, $objProduct);
+					}
+				}
 
 				//Prepare the images
 				$arrImages = $this->getProductImages($objProduct);
@@ -272,15 +376,33 @@ class IsotopeFeeds extends Controller
 						$objItem->additional_image_link = $arrAdditional;
 					}
 				}
+				
+				//Cache the file
+				$strLocation = 'isotope/cache/' . $arrConfig['id'] . '/' .  $strType . '/' . $objProduct->alias . ($objProduct->pid > 0 ? '-' . $objProduct->id : '' ) .  '.xml';
+				$objItem->cache($strLocation);
+			}
+			else
+			{
+				$blnDelete = true;
+			}
 
-				$objFeed->addItem($objItem);
+		}
+		
+		if($blnDelete)
+		{
+			//Delete the cache file if it exists
+			if($objRecord->pid>0)
+			{
+				$objParent = $this->Database->execute("SELECT * FROM tl_iso_products WHERE id={$objRecord->pid}");
+			}
+			$strAlias = strlen($objProduct->alias) ? $objProduct->alias : (strlen($objRecord->alias) ? $objRecord->alias : $objParent->alias);
+			$strLocation = 'isotope/cache/' . $arrConfig['id'] . '/' .  $strType . '/' . $strAlias . ($objRecord->pid > 0 ? '-' . $objRecord->id : '' ) .  '.xml';
+			if(is_file(TL_ROOT . '/' . $strLocation))
+			{
+				$this->Files->delete($strLocation);
 			}
 		}
 
-		// Create file
-		$objRss = new File($strFile . '.xml');
-		$objRss->write($this->replaceInsertTags($objFeed->$arrType[1]()));
-		$objRss->close();
 	}
 
 
@@ -292,13 +414,14 @@ class IsotopeFeeds extends Controller
 	protected function getProductImages($objProduct)
 	{
 		$arrReturn = array();
-		$varValue = deserialize($this->Database->execute("SELECT images FROM tl_iso_products WHERE id={$objProduct->id}")->images);
+		$intID = $objProduct->pid ? $objProduct->pid : $objProduct->id;
+		$varValue = deserialize($this->Database->execute("SELECT images FROM tl_iso_products WHERE id={$intID}")->images);
 
 		if(is_array($varValue) && count($varValue))
 		{
 			foreach( $varValue as $k => $file )
 			{
-				$strFile = 'isotope/' . substr($file['src'], 0, 1) . '/' . $file['src'];
+				$strFile = 'isotope/' . strtolower(substr($file['src'], 0, 1)) . '/' . $file['src'];
 
 				if (is_file(TL_ROOT . '/' . $strFile))
 				{
@@ -351,6 +474,73 @@ class IsotopeFeeds extends Controller
 
 		return $arrReturn;
 	}
+	
+	
+	/**
+	 * Handle the AJAX request that will rebuild the cache, etc
+	 * @param string
+	 * @return string
+	 */
+	 public function ajaxHandler($strAction)
+	 {
+		 if($strAction=='startCache')
+		 {
+		
+			$intLimit = 5;
+			$intOffset = (int) $this->Input->post('offset');
+			
+			$time = time();
+			$objProduct = $this->Database->prepare("SELECT * FROM tl_iso_products WHERE pid=0 AND (start='' OR start<$time) AND (stop='' OR stop>$time) AND published=1 ORDER BY tstamp DESC")
+										 ->limit($intLimit, $intOffset)
+										 ->execute();
+										 
+			$arrConfigs = $this->Database->prepare("SELECT * FROM tl_iso_config WHERE addFeed=1")->execute()->fetchAllAssoc();
+			
+			$varOffset = $objProduct->numRows ? ($intOffset+5) :  'finished';
+			$strMessage = $objProduct->numRows ? ($intOffset+5) . ' products cached...' : 'Cache refresh complete';
+			
+			if($objProduct->numRows)
+			{
+				while($objProduct->next())
+				{
+					foreach($arrConfigs as $arrConfig)
+					{
+						$arrFeedTypes = deserialize($arrConfig['feedTypes'], true);
+						
+						foreach( $arrFeedTypes as $feedType )
+						{
+							//Empty the cache folder if this is first run
+							if((int)$this->Input->post('offset')==0)
+							{
+								$strLocation = 'isotope/cache/' . $arrConfig['id'] . '/' .  $strType;
+								if(is_dir(TL_ROOT . '/' . $strLocation))
+								{
+									$objFolder = new Folder($strLocation);
+									$objFolder->clear();
+								}
+							}
+						
+							$this->generateProductXML($feedType, $objProduct, $arrConfig);
+						}
+					}
+				}
+			}
+			
+			echo json_encode(array
+			(
+				'content' => array(
+					
+					'offset'	=> $varOffset,
+					'message'	=> $strMessage,
+				),
+				'token'   => REQUEST_TOKEN
+			));
+			exit;
+			 
+		 }
+		 
+	 }
+	
 
 }
 

@@ -25,7 +25,7 @@
  * @license    http://opensource.org/licenses/lgpl-3.0.html
  */
 
-class GoogleFeed extends Feed
+class FeedGoogleMerchant extends FeedIsotope
 {
 
 
@@ -45,9 +45,41 @@ class GoogleFeed extends Feed
 		$xml .= '    <language>' . $this->language . '</language>' . "\n";
 		$xml .= '    <pubDate>' . date('r', $this->published) . '</pubDate>' . "\n";
 		$xml .= '    <generator>Contao Open Source CMS</generator>' . "\n";
-		$xml .= '    <atom:link href="' . specialchars($this->Environment->base . $this->strName) . '.xml" rel="self" type="application/rss+xml" />' . "\n";
 
-		$arrGoogleFields = array(
+		foreach ($this->arrFiles as $objFile)
+		{
+			$xml .= $objFile->getContent();
+		}
+
+		$xml .= '  </channel>' . "\n";
+		$xml .= '</rss>';
+
+		return $xml;
+	}
+
+}
+
+
+class FeedItemGoogleMerchant extends FeedItemIsotope
+{
+	/**
+	 * Cache the item's XML node to a file
+	 * @param string
+	 */
+	public function cache($strLocation)
+	{
+		//double-check: if we do not have two out of 3 unique identifiers, delete cache
+		if((!$this->condition || !$this->availability || !$this->brand) || (!strlen($this->gtin) && !strlen($this->mpn)))
+		{
+			if(is_file(TL_ROOT . '/' . $strLocation))
+			{
+				$this->Files->delete($strLocation);
+			}
+			return;
+		}
+		
+		$arrGoogleFields = array
+		(
 			'id',
 			'price',
 			'availability',
@@ -69,38 +101,37 @@ class GoogleFeed extends Feed
 			'gender',
 			'age_group',
 		);
-
-
-		foreach ($this->arrItems as $objItem)
+		
+		
+		$xml .= '	<item>' . "\n";
+		$xml .= '      <title>' . specialchars($this->title) . '</title>' . "\n";
+		$xml .= '      <description><![CDATA[' . preg_replace('/[\n\r]+/', ' ', $this->description) . ']]></description>' . "\n";
+		$xml .= '      <link><![CDATA[' . specialchars($this->link) . ']]></link>' . "\n";
+		foreach($arrGoogleFields as $strKey)
 		{
-			$xml .= '    <item>' . "\n";
-			$xml .= '      <title>' . specialchars($objItem->title) . '</title>' . "\n";
-			$xml .= '      <description><![CDATA[' . preg_replace('/[\n\r]+/', ' ', $objItem->description) . ']]></description>' . "\n";
-			$xml .= '      <link><![CDATA[' . specialchars($objItem->link) . ']]></link>' . "\n";
-			foreach($arrGoogleFields as $strKey)
+			if($this->__isset($strKey) && count($this->$strKey) )
 			{
-				if($objItem->__isset($strKey) && strlen($objItem->$strKey) )
+				if(is_array($this->$strKey) && count($this->$strKey))
 				{
-					if(is_array($objItem->$strKey) && count($objItem->$strKey))
+					foreach($this->$strKey as $value)
 					{
-						foreach($objItem->$strKey as $value)
-						{
-							$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($value) . ']]></g:'.$strKey.'>' . "\n";
-						}
-					}
-					else
-					{
-						$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($objItem->$strKey) . ']]></g:'.$strKey.'>' . "\n";
+						$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($value) . ']]></g:'.$strKey.'>' . "\n";
 					}
 				}
+				elseif(!is_array($this->$strKey) && strlen($this->$strKey))
+				{
+					$xml .= '      <g:'.$strKey.'><![CDATA[' . specialchars($this->$strKey) . ']]></g:'.$strKey.'>' . "\n";
+				}
 			}
-			$xml .= '    </item>' . "\n";
 		}
-
-		$xml .= '  </channel>' . "\n";
-		$xml .= '</rss>';
-
-		return $xml;
+		if($this->shipping)
+		{
+			$xml .= $this->shipping;
+		}
+		$xml .= '	</item>' . "\n";
+		
+		$this->write($xml, $strLocation);
+		
 	}
 
 }

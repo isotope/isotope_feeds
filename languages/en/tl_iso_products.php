@@ -29,6 +29,7 @@
 /**
  * Fields
  */
+$GLOBALS['TL_LANG']['tl_iso_products']['useFeed'] 				= array('Use in Feed', 'Check this box if you wish to set and use this product data in feeds.');
 $GLOBALS['TL_LANG']['tl_iso_products']['gid_condition'] 		= array('Condition', 'Please enter the condition of the product.');
 $GLOBALS['TL_LANG']['tl_iso_products']['gid_availability'] 		= array('Availability', 'Please enter the availability of the product.');
 $GLOBALS['TL_LANG']['tl_iso_products']['gid_brand'] 			= array('Brand', 'Please enter the brand/manufacturer of the product. Not required for custom products, books, or media, or if you are providing a GTIN and MPN.');
@@ -49,9 +50,15 @@ $GLOBALS['TL_LANG']['tl_iso_products']['out of stock'] 	= 'Out of Stock';
 $GLOBALS['TL_LANG']['tl_iso_products']['preorder'] 		= 'Preorder';
 
 /**
+ * Buttons
+ */
+$GLOBALS['TL_LANG']['tl_iso_products']['cache_feeds'] = 'Refresh feed cache';
+$GLOBALS['TL_LANG']['tl_iso_products']['generate_feeds'] = 'Regenerate feed';
+
+/**
  * Legends
  */
-$GLOBALS['TL_LANG']['tl_iso_products']['google_legend:hide']	= "Google Merchant Settings";
-$GLOBALS['TL_LANG']['tl_iso_products']['google_legend']	= "Google Merchant Settings";
+$GLOBALS['TL_LANG']['tl_iso_products']['feed_legend:hide']	= "Feed Settings";
+$GLOBALS['TL_LANG']['tl_iso_products']['feed_legend']		= "Feed Settings";
 
 ?>

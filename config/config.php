@@ -30,9 +30,22 @@
  */
 $GLOBALS['ISO_FEEDS'] = array
 (
-	'googlebase' => array('GoogleFeed', 'generateGoogle'),
-	'rss20'		 => array('Feed', 'generateRss')
+	'googlebase' => array
+	(
+		'feed'	=> array('FeedGoogleMerchant', 'generateGoogle'),
+		'item'	=> 'FeedItemGoogleMerchant'
+	),
+	'rss20'		 => array
+	(
+		'feed'	=> array('FeedIsotope', 'generateRss'),
+		'item'	=> 'FeedItemIsotope'
+	),
 );
+
+if (TL_MODE == 'BE')
+{
+	$GLOBALS['TL_CSS'][] = 'system/modules/isotope_feeds/html/isotope-feeds.css';
+}
 
 
 /**
@@ -44,4 +57,5 @@ $GLOBALS['TL_CRON']['daily'][] = array('IsotopeFeeds', 'generateFeeds');
  * Hooks
  */
 $GLOBALS['TL_HOOKS']['removeOldFeeds'][] = array('IsotopeFeeds', 'preserveFeeds');
-$GLOBALS['TL_HOOKS']['generatePage'][] = array('IsotopeFeeds', 'addFeedToLayout');
+$GLOBALS['TL_HOOKS']['executePreActions'][] = array('IsotopeFeeds', 'ajaxHandler');
+//$GLOBALS['TL_HOOKS']['generatePage'][] = array('IsotopeFeeds', 'addFeedToLayout');

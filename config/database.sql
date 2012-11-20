@@ -41,6 +41,7 @@ CREATE TABLE `tl_layout` (
 --
 
 CREATE TABLE `tl_iso_products` (
+  `useFeed` char(1) NOT NULL default '',
   `gid_condition` varchar(64) NOT NULL default '',
   `gid_availability` varchar(64) NOT NULL default '',
   `gid_brand` varchar(255) NOT NULL default '',
